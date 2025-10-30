@@ -1,4 +1,4 @@
-cellular.forest <- function(num_iterations = 50){
+cellular.forest <- function(num_iterations = 20){
   
   # Load necessary libraries
   library(ggplot2)
