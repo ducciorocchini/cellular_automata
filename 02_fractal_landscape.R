@@ -1,4 +1,5 @@
-
+cellular.landscape <- function() {
+  
 # Load packages
 library(ambient)
 library(tidyverse)
@@ -33,3 +34,4 @@ ggplot(terrain_df, aes(x = x, y = y, fill = value)) +
     axis.ticks = element_blank(),
     panel.grid = element_blank()
   )
+  }
