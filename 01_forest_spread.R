@@ -1,4 +1,4 @@
-cellular.forest <- function(num_iterations = 20){
+cellular.forest <- function(num_iterations = 50, plot_interval = 5){
   
   # Load necessary libraries
   library(ggplot2)
@@ -82,12 +82,12 @@ cellular.forest <- function(num_iterations = 20){
   # Initial state plot
   plots[[1]] <- plot_grid(grid, "Iteration 0")
 
-  # Store plots for every 10th iteration (or change this logic to store at intervals you prefer)
+  # Store plots for every 'plot_interval' iterations
   for (i in 1:num_iterations) {
     grid <- update_grid(grid)
     
-    # Store every 10th iteration to display later
-    if (i %% 10 == 0) {
+    # Store the plot every 'plot_interval' iterations
+    if (i %% plot_interval == 0) {
       plots[[length(plots) + 1]] <- plot_grid(grid, paste("Iteration", i))
     }
   }
