@@ -1,3 +1,5 @@
+cellular.forest <- function(){
+  
 # Load necessary libraries
 library(ggplot2)
 library(patchwork)
@@ -7,9 +9,13 @@ n_rows <- 50  # Number of rows in the grid
 n_cols <- 50  # Number of columns in the grid
 grid <- matrix(0, nrow = n_rows, ncol = n_cols)  # Create an empty grid
 
-# Initialize with random vegetation (1) in some cells
-set.seed(42)
-grid[sample(1:(n_rows * n_cols), size = 100)] <- 1  # Random vegetation spread
+# Function to initialize the grid with random vegetation
+initialize_grid <- function(n_rows, n_cols) {
+  grid <- matrix(0, nrow = n_rows, ncol = n_cols)  # Empty grid
+  set.seed(NULL)  # Remove the fixed seed to introduce randomness
+  grid[sample(1:(n_rows * n_cols), size = 100)] <- 1  # Random vegetation spread
+  return(grid)
+}
 
 # Function to get neighbors of a given cell
 get_neighbors <- function(row, col, grid) {
@@ -71,9 +77,13 @@ plot_grid <- function(grid, title = "Vegetation Growth") {
 num_iterations <- 50
 plots <- list()
 
+# Initialize grid randomly
+grid <- initialize_grid(n_rows, n_cols)
+
 # Initial state plot
 plots[[1]] <- plot_grid(grid, "Iteration 0")
 
+# Store the plots for every 10th iteration
 for (i in 1:num_iterations) {
   grid <- update_grid(grid)
   
@@ -83,6 +93,8 @@ for (i in 1:num_iterations) {
   }
 }
 
-# Arrange the plots in a multi-frame layout using patchwork
-final_plot <- wrap_plots(plots, ncol = 5)  # Display in 5 columns
+# Arrange the plots in a multi-frame layout with 3 plots per row
+final_plot <- wrap_plots(plots, ncol = 3)  # Display in 3 columns
 final_plot
+
+  }
