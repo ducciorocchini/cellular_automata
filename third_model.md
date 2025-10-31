@@ -1,21 +1,13 @@
-Perfect — this is where things get interesting 🌿🏔️
+Excellent 👍 — adding **vegetation cover tracking** will let you analyze how the forest reaches equilibrium or fluctuates through time across your fractal landscape.
 
-Let’s combine your two ideas:
+Below is the improved version of the integrated model, which now:
 
-* **The fractal landscape model** (`cellular.landscape`) gives us a heterogeneous environment (e.g., “elevation” or “soil moisture”).
-* **The forest spread model** (`cellular.forest`) simulates vegetation growth and death.
-
-Now we’ll **force the forest dynamics to depend on the landscape**, so growth probability varies with the terrain.
-For instance, we can assume:
-
-* **Low elevation (valleys)** → higher vegetation growth probability.
-* **High elevation (mountain tops)** → lower vegetation growth probability.
+* Returns **both** the final visualization and
+* A **data frame of vegetation cover (%) over iterations**
 
 ---
 
-## 🌲 Combined Model: Forest Spread on a Fractal Landscape
-
-Here’s the integrated model function:
+## 🌳 `cellular.forest.landscape()` – with Vegetation Cover Tracking
 
 ```r
 cellular.forest.landscape <- function(num_iterations = 50, plot_interval = 10,
@@ -23,26 +15,25 @@ cellular.forest.landscape <- function(num_iterations = 50, plot_interval = 10,
                                       frequency = 0.05, octaves = 5,
                                       base_growth = 0.1, death_prob = 0.02,
                                       seed = NULL) {
-  # Load libraries
+  # --- 1. Load libraries ---
   library(ggplot2)
   library(patchwork)
   library(ambient)
   library(tidyverse)
   library(viridis)
   
-  # --- 1. Generate fractal landscape ---
+  # --- 2. Generate fractal landscape ---
   if (!is.null(seed)) set.seed(seed)
   terrain <- noise_perlin(c(n_rows, n_cols), frequency = frequency, octaves = octaves)
   
-  # Normalize terrain to [0, 1] for easier interpretation (0 = low, 1 = high)
+  # Normalize terrain to [0, 1]
   terrain <- (terrain - min(terrain)) / (max(terrain) - min(terrain))
   
-  # --- 2. Initialize forest grid ---
+  # --- 3. Initialize forest grid ---
   grid <- matrix(0, nrow = n_rows, ncol = n_cols)
-  grid[sample(1:(n_rows * n_cols), size = 200)] <- 1  # start with 200 vegetated cells
+  grid[sample(1:(n_rows * n_cols), size = 200)] <- 1  # Start with 200 vegetated cells
   
-  # --- 3. Helper functions ---
-  
+  # --- 4. Helper functions ---
   get_neighbors <- function(row, col, grid) {
     neighbors <- c()
     for (i in -1:1) {
@@ -63,30 +54,26 @@ cellular.forest.landscape <- function(num_iterations = 50, plot_interval = 10,
     new_grid <- grid
     for (row in 1:nrow(grid)) {
       for (col in 1:ncol(grid)) {
-        # Growth (depends on neighbors and terrain)
+        # Growth depends on neighbors and terrain
         if (grid[row, col] == 0) {
           neighbors <- get_neighbors(row, col, grid)
           if (sum(neighbors) > 0) {
-            # Growth probability decreases with elevation
-            terrain_factor <- 1 - terrain[row, col]
+            terrain_factor <- 1 - terrain[row, col]  # low terrain = high growth
             growth_prob <- base_growth * terrain_factor
             if (runif(1) < growth_prob) {
               new_grid[row, col] <- 1
             }
           }
         }
-        # Death (constant probability)
-        if (grid[row, col] == 1) {
-          if (runif(1) < death_prob) {
-            new_grid[row, col] <- 0
-          }
+        # Death
+        if (grid[row, col] == 1 && runif(1) < death_prob) {
+          new_grid[row, col] <- 0
         }
       }
     }
     return(new_grid)
   }
   
-  # --- 4. Plotting function ---
   plot_grid <- function(grid, terrain, title = "") {
     df <- expand.grid(x = 1:ncol(grid), y = 1:nrow(grid))
     df$value <- as.vector(grid)
@@ -108,18 +95,45 @@ cellular.forest.landscape <- function(num_iterations = 50, plot_interval = 10,
   
   # --- 5. Run the simulation ---
   plots <- list()
+  cover <- numeric(num_iterations + 1)
+  cover[1] <- sum(grid) / (n_rows * n_cols)
+  
   plots[[1]] <- plot_grid(grid, terrain, "Iteration 0")
   
   for (i in 1:num_iterations) {
     grid <- update_grid(grid, terrain)
+    cover[i + 1] <- sum(grid) / (n_rows * n_cols)
+    
     if (i %% plot_interval == 0) {
       plots[[length(plots) + 1]] <- plot_grid(grid, terrain, paste("Iteration", i))
     }
   }
   
-  # --- 6. Combine results ---
   final_plot <- wrap_plots(plots, ncol = 3)
-  final_plot
+  
+  # --- 6. Create vegetation cover data frame ---
+  cover_df <- tibble(
+    iteration = 0:num_iterations,
+    vegetation_cover = cover * 100  # convert to %
+  )
+  
+  cover_plot <- ggplot(cover_df, aes(x = iteration, y = vegetation_cover)) +
+    geom_line(color = "forestgreen", linewidth = 1.2) +
+    geom_point(color = "darkgreen") +
+    theme_minimal() +
+    labs(
+      title = "Vegetation Cover Over Time",
+      x = "Iteration",
+      y = "Vegetation Cover (%)"
+    ) +
+    theme(plot.title = element_text(hjust = 0.5))
+  
+  # --- 7. Return both outputs ---
+  return(list(
+    landscape_plots = final_plot,
+    cover_plot = cover_plot,
+    cover_data = cover_df
+  ))
 }
 ```
 
@@ -135,35 +149,21 @@ result <- cellular.forest.landscape(
   octaves = 5,
   seed = 123
 )
-result
+
+# Display spatial evolution
+result$landscape_plots
+
+# Display vegetation cover through time
+result$cover_plot
+
+# Inspect data
+head(result$cover_data)
 ```
 
-You’ll see:
-
-* The **fractal terrain** underneath (color = elevation).
-* Vegetation grows preferentially in **low-lying regions (valleys)** where `terrain` is low (growth probability higher).
-* Over time, vegetation spreads but remains structured by the topography.
-
 ---
 
-### 🌍 Model Logic Summary
+### 🌿 What You’ll Get
 
-| Process   | Description                             | Depends on                 |
-| --------- | --------------------------------------- | -------------------------- |
-| Growth    | Empty cells next to vegetation can grow | `terrain` (lower = faster) |
-| Death     | Random 2% mortality                     | constant                   |
-| Landscape | Perlin fractal noise                    | `frequency`, `octaves`     |
-
----
-
-### 💡 Optional Extensions
-
-If you’d like to expand:
-
-1. **Make growth depend on both neighbors and terrain moisture** (e.g., `terrain_factor^2`).
-2. **Track vegetation cover** through time and plot the curve.
-3. **Return both the final grid and terrain matrix** for post-analysis.
-
----
-
-Would you like me to modify this version so it **returns both the plots and a time series of total vegetation cover** (so you can analyze how vegetation stabilizes across the terrain)?
+1. **`result$landscape_plots`** → shows the spatial pattern of forest spread across the fractal landscape.
+2. **`result$cover_plot`** → a line graph showing vegetation cover (%) through iterations.
+3. **`result$cover_data`** → a data frame (`iteration`, `vegetation_cover`) for analysis or export.
